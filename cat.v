@@ -46,6 +46,98 @@ Section variables.
   End tvars.
 End variables.
 
+Section finVariables.
+  Inductive finType : Type -> Type :=
+  | fTVar : finType unit
+  | fArrow : forall n m : Type,
+               finType n -> finType m -> finType (n + m).
+
+  Fixpoint type_of_finType n tvar (t : finType n)
+  : (n -> tvar) -> type tvar
+    := match t in finType n return (n -> _) -> _ with
+         | fTVar => fun tvars => TVar (tvars tt)
+         | fArrow tn tm t1 t2 =>
+           fun tvars =>
+             Arrow
+               (@type_of_finType _ _ t1 (fun x => tvars (inl x)))
+               (@type_of_finType _ _ t2 (fun x => tvars (inr x)))
+       end.
+
+  Section var.
+    Variable tvar : Type.
+    Variable var : finType tvar -> Type.
+
+    Inductive finTerm : finType tvar -> Type :=
+    | fVar : forall t,
+      var t -> term t
+    | Abs : forall dom ran,
+      (var dom -> term ran) -> term (Arrow dom ran)
+    | App : forall dom ran,
+      term (Arrow dom ran) -> term dom -> term ran.
+  End var.
+
+  Definition Term t := forall var, term var t.
+
+  Section tvars.
+    Variable tvarD : tvar -> Type.
+
+    Fixpoint typeD (t : type) : Type :=
+      match t with
+        | Arrow t1 t2 => typeD t1 -> typeD t2
+        | TVar a => tvarD a
+      end.
+
+    Fixpoint termD t (e : term typeD t) : typeD t :=
+      match e with
+        | Var _ x => x
+        | Abs _ _ e1 => fun x => termD (e1 x)
+        | App _ _ e1 e2 => (termD e1) (termD e2)
+      end.
+
+    Definition TermD t (E : Term t) : typeD t :=
+      termD (E _).
+  End tvars.
+End variables.
+
+
+(*
+Section finVariables.
+  Variable tvar : Type.
+  Variable count_occ : type tvar -> nat.
+
+  Check @term tvar (fun t => Fin (count_occ t)).
+  Section var.
+    Inductive finTerm n : finType n -> Type :=
+    | fVar : forall f : Fin n, finTerm (TVar f)
+    | fAbs : forall dom ran,
+               (var dom -> term ran) -> term (Arrow dom ran)
+    | App : forall dom ran,
+      term (Arrow dom ran) -> term dom -> term ran.
+  End var.
+
+  Definition Term t := forall var, term var t.
+
+  Section tvars.
+    Variable tvarD : tvar -> Type.
+
+    Fixpoint typeD (t : type) : Type :=
+      match t with
+        | Arrow t1 t2 => typeD t1 -> typeD t2
+        | TVar a => tvarD a
+      end.
+
+    Fixpoint termD t (e : term typeD t) : typeD t :=
+      match e with
+        | Var _ x => x
+        | Abs _ _ e1 => fun x => termD (e1 x)
+        | App _ _ e1 e2 => (termD e1) (termD e2)
+      end.
+
+    Definition TermD t (E : Term t) : typeD t :=
+      termD (E _).
+  End tvars.
+End variables.
+*)
 Record category := {
   Object :> Type;
   Morphism : Object -> Object -> Type;
